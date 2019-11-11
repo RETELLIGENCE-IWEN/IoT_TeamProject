@@ -1,0 +1,51 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    xmlns:dist="http://schemas.android.com/apk/distribution"
+4    package="com.example.homeblackbox"
+5    android:versionCode="1"
+6    android:versionName="1.0" >
+7
+8    <uses-sdk
+9        android:minSdkVersion="26"
+9-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml
+10        android:targetSdkVersion="28" />
+10-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml
+11
+12    <dist:module dist:instant="true" />
+12-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:6:5-40
+12-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:6:18-37
+13
+14    <application
+14-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:8:5-22:19
+15        android:allowBackup="true"
+15-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:9:9-35
+16        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+16-->[androidx.core:core:1.0.1] C:\Users\me\.gradle\caches\transforms-2\files-2.1\c0a39027978b83a483a047f5c31d0c4e\core-1.0.1\AndroidManifest.xml:22:18-86
+17        android:debuggable="true"
+18        android:icon="@mipmap/ic_launcher"
+18-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:10:9-43
+19        android:label="@string/app_name"
+19-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:11:9-41
+20        android:roundIcon="@mipmap/ic_launcher_round"
+20-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:12:9-54
+21        android:supportsRtl="true"
+21-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:13:9-35
+22        android:theme="@style/AppTheme" >
+22-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:14:9-40
+23        <activity android:name="com.example.homeblackbox.MainActivity" >
+23-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:15:9-21:20
+23-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:15:19-47
+24            <intent-filter>
+24-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:16:13-20:29
+25                <action android:name="android.intent.action.MAIN" />
+25-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:17:17-69
+25-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:17:25-66
+26
+27                <category android:name="android.intent.category.LAUNCHER" />
+27-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:19:17-77
+27-->C:\Users\me\AndroidStudioProjects\HomeBlackbox\app\src\main\AndroidManifest.xml:19:27-74
+28            </intent-filter>
+29        </activity>
+30    </application>
+31
+32</manifest>
