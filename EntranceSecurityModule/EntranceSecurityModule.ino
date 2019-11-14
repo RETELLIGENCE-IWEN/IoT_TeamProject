@@ -14,9 +14,9 @@
 
 BluetoothSerial SerialBT; // BT Handler
 
-const int xpin = A0; // x-axis of the accelerometer
-const int ypin = A3; // y-axis
-const int zpin = A4; // z-axis
+const int xpin = 36; // x-axis of the accelerometer
+const int ypin = 39; // y-axis
+const int zpin = 34; // z-axis
 
 float acc_X = 0;
 float acc_Y = 0;
