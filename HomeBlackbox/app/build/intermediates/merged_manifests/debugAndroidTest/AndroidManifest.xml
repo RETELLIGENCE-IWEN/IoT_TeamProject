@@ -3,7 +3,7 @@
     package="com.example.homeblackbox.test" >
 
     <uses-sdk
-        android:minSdkVersion="26"
+        android:minSdkVersion="15"
         android:targetSdkVersion="28" />
 
     <instrumentation
