@@ -18,14 +18,18 @@ const int xpin = 36; // x-axis of the accelerometer
 const int ypin = 39; // y-axis
 const int zpin = 34; // z-axis
 
+float G_acc_X = 0;
+float G_acc_Y = 0;
+float G_acc_Z = 0;
+
 float acc_X = 0;
 float acc_Y = 0;
 float acc_Z = 0;
 int   _A_   = 0;
 
-float acc_ThreshHold = 0;
+float acc_ThreshHold = 2.6;
 
-bool Security_State = false;  // true : security on
+bool Security_State = true;  // true : security on
 unsigned char Last_cmd = NULL;
 
 // Device Info
@@ -33,13 +37,47 @@ String DeviceCodeName = "ESM0";
 String Device_BT_ADDR;
 String __ = "=";
 
+
+
+// Resset
+void RessetESM() {
+
+  delay(500);
+
+  int x = analogRead(xpin); //read from xpin
+  delay(1); //
+  int y = analogRead(ypin); //read from ypin
+  delay(1);
+  int z = analogRead(zpin); //read from zpin
+
+  float zero_G = 512.0; //ADC is 0~1023 the zero g output equal to Vs/2
+  float scale = 102.3; //ADXL335330 Sensitivity is 330mv/g
+  //330 * 1024/3.3/1000
+
+  G_acc_X = ((float)x - 331.5) / 65 * 9.8;
+  G_acc_Y = ((float)y - 329.5) / 68.5 * 9.8;
+  G_acc_Z = ((float)z - 340) / 68 * 9.8;
+
+  Serial.println("\n[  Base acc Value  ]");
+  Serial.print(G_acc_X); //print x value on serial monitor
+  Serial.print("\t");
+  Serial.print(G_acc_Y); //print y value on serial monitor
+  Serial.print("\t");
+  Serial.print(G_acc_Z); //print z value on serial monitor
+  Serial.print("\n\n");
+
+  delay(500);
+}
+
+
+
 // SET UP
 void setup()
 {
   Serial.begin(115200);
 
   SerialBT.begin(DeviceCodeName); //Bluetooth device name
-  Serial.print("Entrance Security Module [ ");
+  Serial.print("\n\nEntrance Security Module [ ");
   Serial.print(DeviceCodeName);
   Serial.println(" ] Online");
 
@@ -50,8 +88,15 @@ void setup()
   // Get Device BT ADDR
   Device_BT_ADDR = "00:11:22:33:FF:EE";
 
-
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  delay(3000);
 }
+
+
 
 
 // Check Movement Occurrence for 1 Time
@@ -71,16 +116,19 @@ int CheckMovement() {
   acc_Y = ((float)y - 329.5) / 68.5 * 9.8;
   acc_Z = ((float)z - 340) / 68 * 9.8;
 
-  //  Serial.print(((float)x - 331.5) / 65 * 9.8); //print x value on serial monitor
-  //  Serial.print("\t");
-  //  Serial.print(((float)y - 329.5) / 68.5 * 9.8); //print y value on serial monitor
-  //  Serial.print("\t");
-  //  Serial.print(((float)z - 340) / 68 * 9.8); //print z value on serial monitor
-  //  Serial.print("\n");
+  Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+  Serial.print("\t");
+  Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+  Serial.print("\t");
+  Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+  Serial.print("\n");
 
-  if (acc_X > acc_ThreshHold) return 1;
-  if (acc_Y > acc_ThreshHold) return 2;
-  if (acc_Z > acc_ThreshHold) return 3;
+  delay(1000);
+
+  if (abs(G_acc_X - acc_X) > acc_ThreshHold) return 1;
+  if (abs(G_acc_Y - acc_Y) > acc_ThreshHold) return 2;
+  if (abs(G_acc_Z - acc_Z) > acc_ThreshHold) return 3;
+
   return 0;
 }
 
@@ -94,20 +142,24 @@ int ReadBT() {
   }
 
   // Send Ack
-  return 1;
+  return 0;
 }
 
 
 void SecurityAlert(int AlertAxis) {
+  Serial.println("Security Alert!  ");
   while (!SerialBT.available()) {
     delay(50);
     Serial.print("BT Connection not available - ");
     Serial.println(DeviceCodeName);
+    break;
   }
   String State  = "E";
   String S_Code = "0130"; // *** Requires refactoring
   String StateMSG = String(DeviceCodeName + __ + Device_BT_ADDR + __ + State + __ + S_Code);
   //  SerialBT.write(StateMSG);
+  Serial.println(StateMSG);
+  Serial.println("\n");
 }
 
 
@@ -151,7 +203,7 @@ void loop()
 
 
   if (Security_State) {
-    
+
     // CHECK FOR INVASION //////////////////////////////////////////////////////////////////////////////////////////////////////////
     _A_ = CheckMovement();
     switch (_A_) {
