@@ -29,12 +29,13 @@ esp_now_peer_info_t master[2] = {};
 
 
 char MASMAC[18] = "3c:71:bf:ff:64:6c";
+//char MASMAC[18] = "80:7d:3a:ba:3a:88";
 
-const int sLED = 16;
+const int sLED = 35;
 
-const int xpin = 4; // x-axis of the accelerometer
-const int ypin = 2; // y-axis
-const int zpin = 15; // z-axis
+const int xpin = 36; // x-axis of the accelerometer
+const int ypin = 39; // y-axis
+const int zpin = 34; // z-axis
 
 float G_acc_X = 0;
 float G_acc_Y = 0;
@@ -48,13 +49,16 @@ int   _A_   = 0;
 int MoniteringState = ESM_NOISSUE;
 int SecurityState = ESM_ACTIVATE;
 
-float acc_ThreshHold = 2.6;
+float acc_ThreshHold = 8;
 
 bool Security_State = true;  // true : security on
 unsigned char Last_cmd = NULL;
 
 String __ = "=";
 String DeviceCodeName = "ESM9";
+
+bool wasAlert = false;
+bool handwasAlert = true;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void RessetESM() {
@@ -75,15 +79,15 @@ void RessetESM() {
   G_acc_Y = ((float)y - 329.5) / 68.5 * 9.8;
   G_acc_Z = ((float)z - 340) / 68 * 9.8;
 
-  Serial.println("\n[  Base acc Value  ]");
-  Serial.print(G_acc_X); //print x value on serial monitor
-  Serial.print("\t");
-  Serial.print(G_acc_Y); //print y value on serial monitor
-  Serial.print("\t");
-  Serial.print(G_acc_Z); //print z value on serial monitor
-  Serial.print("\n\n");
+  //  Serial.println("\n[  Base acc Value  ]");
+  //  Serial.print(G_acc_X); //print x value on serial monitor
+  //  Serial.print("\t");
+  //  Serial.print(G_acc_Y); //print y value on serial monitor
+  //  Serial.print("\t");
+  //  Serial.print(G_acc_Z); //print z value on serial monitor
+  //  Serial.print("\n\n");
 
-  delay(1000);
+  delay(100);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -111,17 +115,42 @@ int CheckMovement() {
   //  Serial.print("\t");
   //  Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
   //  Serial.print("\n");
-  Serial.print(acc_X); //print x value on serial monitor
-  Serial.print("\t");
-  Serial.print(acc_Y); //print y value on serial monitor
-  Serial.print("\t");
-  Serial.print(acc_Z); //print z value on serial monitor
-  Serial.print("\n");
-  delay(500);
 
-  if (abs(G_acc_X - acc_X) > acc_ThreshHold) return 1;
-  if (abs(G_acc_Y - acc_Y) > acc_ThreshHold) return 2;
-  if (abs(G_acc_Z - acc_Z) > acc_ThreshHold) return 3;
+  //  Serial.print(acc_X); //print x value on serial monitor
+  //  Serial.print("\t");
+  //  Serial.print(acc_Y); //print y value on serial monitor
+  //  Serial.print("\t");
+  //  Serial.print(acc_Z); //print z value on serial monitor
+  //  Serial.print("\n");
+  delay(3);
+
+  if (abs(G_acc_X - acc_X) > acc_ThreshHold) {
+    Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+    Serial.print("\t");
+    Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+    Serial.print("\t");
+    Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+    Serial.print("\n");
+    return 1;
+  }
+  if (abs(G_acc_Y - acc_Y) > acc_ThreshHold) {
+    Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+    Serial.print("\t");
+    Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+    Serial.print("\t");
+    Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+    Serial.print("\n");
+    return 2;
+  }
+  if (abs(G_acc_Z - acc_Z) > acc_ThreshHold) {
+    Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+    Serial.print("\t");
+    Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+    Serial.print("\t");
+    Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+    Serial.print("\n");
+    return 3;
+  }
 
   return 0;
 }
@@ -178,11 +207,6 @@ void configDeviceAP() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   Serial.begin(115200);
-  RessetESM();
-  RessetESM();
-  RessetESM();
-  RessetESM();
-  RessetESM();
 
   //Set device in AP mode to begin with
   WiFi.mode(WIFI_AP_STA);
@@ -200,12 +224,16 @@ void setup() {
   Serial.print(DeviceCodeName);
   Serial.println(" ] Online");
 
-  //  RessetESM();
-  //  RessetESM();
-  //  RessetESM();
-  //  RessetESM();
-  //  RessetESM();
-  //  delay(1000);
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
 
   Serial.print("\n\nEntrance Security Module [ ");
   Serial.print(DeviceCodeName);
@@ -277,6 +305,10 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   }
 
 
+  if (wasAlert){
+    Sdata = 44;
+    wasAlert = false;
+  }
   //  const char Sdata = "ESM Bidirectional Positive";
   Serial.print("Sending: ");
   Serial.println(Sdata);
@@ -313,16 +345,16 @@ void loop() {
   switch (_A_) {
     case 0:
       MoniteringState = ESM_NOISSUE;
-      delay(500);
       // No Issue
       break;
 
     default:
       SecurityAlert(_A_);
+      wasAlert = true;
       break;
   }
   Sdata = MoniteringState;
   // Chill
-  delay(3000);
+  delay(50);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
