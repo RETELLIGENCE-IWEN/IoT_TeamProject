@@ -27,9 +27,14 @@ esp_now_peer_info_t master[2] = {};
 
 #define ESM_index      10
 
-const int xpin = 36; // x-axis of the accelerometer
-const int ypin = 39; // y-axis
-const int zpin = 34; // z-axis
+
+char MASMAC[18] = "3c:71:bf:ff:64:6c";
+
+const int sLED = 16;
+
+const int xpin = 4; // x-axis of the accelerometer
+const int ypin = 2; // y-axis
+const int zpin = 15; // z-axis
 
 float G_acc_X = 0;
 float G_acc_Y = 0;
@@ -49,7 +54,7 @@ bool Security_State = true;  // true : security on
 unsigned char Last_cmd = NULL;
 
 String __ = "=";
-String DeviceCodeName = "ESM0";
+String DeviceCodeName = "ESM9";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void RessetESM() {
@@ -70,13 +75,13 @@ void RessetESM() {
   G_acc_Y = ((float)y - 329.5) / 68.5 * 9.8;
   G_acc_Z = ((float)z - 340) / 68 * 9.8;
 
-  //  Serial.println("\n[  Base acc Value  ]");
-  //  Serial.print(G_acc_X); //print x value on serial monitor
-  //  Serial.print("\t");
-  //  Serial.print(G_acc_Y); //print y value on serial monitor
-  //  Serial.print("\t");
-  //  Serial.print(G_acc_Z); //print z value on serial monitor
-  //  Serial.print("\n\n");
+  Serial.println("\n[  Base acc Value  ]");
+  Serial.print(G_acc_X); //print x value on serial monitor
+  Serial.print("\t");
+  Serial.print(G_acc_Y); //print y value on serial monitor
+  Serial.print("\t");
+  Serial.print(G_acc_Z); //print z value on serial monitor
+  Serial.print("\n\n");
 
   delay(500);
 }
@@ -100,12 +105,12 @@ int CheckMovement() {
   acc_Y = ((float)y - 329.5) / 68.5 * 9.8;
   acc_Z = ((float)z - 340) / 68 * 9.8;
 
-  //  Serial.print(G_acc_X - acc_X); //print x value on serial monitor
-  //  Serial.print("\t");
-  //  Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
-  //  Serial.print("\t");
-  //  Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
-  //  Serial.print("\n");
+  Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+  Serial.print("\t");
+  Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+  Serial.print("\t");
+  Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+  Serial.print("\n");
 
   delay(1000);
 
@@ -189,7 +194,15 @@ void setup() {
   RessetESM();
   RessetESM();
   RessetESM();
-  delay(3000);
+  delay(1000);
+
+  Serial.print("\n\nEntrance Security Module [ ");
+  Serial.print(DeviceCodeName);
+  Serial.println(" ] ACTIVATED");
+
+  pinMode(sLED, OUTPUT);
+  digitalWrite(sLED, HIGH);
+
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -202,6 +215,14 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
+  if ( strcmp(macStr, MASMAC) != 0) {
+    //    Serial.println(macStr);
+    //    Serial.println("msg From no master");
+    //    Serial.println(MASMAC);
+    return;
+  }
+
   Serial.println("");
   Serial.print("Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
@@ -281,7 +302,7 @@ void loop() {
   switch (_A_) {
     case 0:
       MoniteringState = ESM_NOISSUE;
-      delay(1000);
+      delay(500);
       // No Issue
       break;
 
