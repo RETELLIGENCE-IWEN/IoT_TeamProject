@@ -83,7 +83,7 @@ void RessetESM() {
   Serial.print(G_acc_Z); //print z value on serial monitor
   Serial.print("\n\n");
 
-  delay(500);
+  delay(1000);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -112,7 +112,7 @@ int CheckMovement() {
   Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
   Serial.print("\n");
 
-  delay(1000);
+  delay(500);
 
   if (abs(G_acc_X - acc_X) > acc_ThreshHold) return 1;
   if (abs(G_acc_Y - acc_Y) > acc_ThreshHold) return 2;
@@ -173,6 +173,12 @@ void configDeviceAP() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   Serial.begin(115200);
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+
   //Set device in AP mode to begin with
   WiFi.mode(WIFI_AP_STA);
   // configure device AP mode
@@ -189,19 +195,19 @@ void setup() {
   Serial.print(DeviceCodeName);
   Serial.println(" ] Online");
 
-  RessetESM();
-  RessetESM();
-  RessetESM();
-  RessetESM();
-  RessetESM();
-  delay(1000);
+  //  RessetESM();
+  //  RessetESM();
+  //  RessetESM();
+  //  RessetESM();
+  //  RessetESM();
+  //  delay(1000);
 
   Serial.print("\n\nEntrance Security Module [ ");
   Serial.print(DeviceCodeName);
   Serial.println(" ] ACTIVATED");
 
-  pinMode(sLED, OUTPUT);
-  digitalWrite(sLED, HIGH);
+  //  pinMode(sLED, OUTPUT);
+  //  digitalWrite(sLED, HIGH);
 
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
