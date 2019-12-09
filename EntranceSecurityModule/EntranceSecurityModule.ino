@@ -105,13 +105,18 @@ int CheckMovement() {
   acc_Y = ((float)y - 329.5) / 68.5 * 9.8;
   acc_Z = ((float)z - 340) / 68 * 9.8;
 
-  Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+  //  Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+  //  Serial.print("\t");
+  //  Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+  //  Serial.print("\t");
+  //  Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+  //  Serial.print("\n");
+  Serial.print(acc_X); //print x value on serial monitor
   Serial.print("\t");
-  Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+  Serial.print(acc_Y); //print y value on serial monitor
   Serial.print("\t");
-  Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+  Serial.print(acc_Z); //print z value on serial monitor
   Serial.print("\n");
-
   delay(500);
 
   if (abs(G_acc_X - acc_X) > acc_ThreshHold) return 1;
@@ -206,8 +211,8 @@ void setup() {
   Serial.print(DeviceCodeName);
   Serial.println(" ] ACTIVATED");
 
-  //  pinMode(sLED, OUTPUT);
-  //  digitalWrite(sLED, HIGH);
+  pinMode(sLED, OUTPUT);
+  digitalWrite(sLED, HIGH);
 
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
