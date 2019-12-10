@@ -1,14 +1,23 @@
 // Retelligence Iwen
 // Isaac Kim
-// Based on default BT example for esp32 
+// Based on AWS & ESP-now
 // KOREA AEROSPACE UNIV.
 // IoT Team Project
 // Home BlackBox
 
 // HUB
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#include <esp_now.h>
 #include <WiFi.h>
+#include <esp_now.h>
+#include <AWS_IOT.h>
+#include <ArduinoJson.h>
+#include <LinkedList.h>
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+LinkedList<int> ESM_Reports = LinkedList<int>();
+
+bool C_W_E_D_C_A = false;
 
 // Global copy of slave
 #define NUMSLAVES 20
@@ -17,9 +26,8 @@ int SlaveCnt = 0;
 
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #define ESM_SLEEP      55
 #define ESM_OFF        11
 #define ESM_ON         22
@@ -34,13 +42,35 @@ int MoniteringState = ESM_NOISSUE;
 int SecurityState = ESM_ACTIVATE;
 
 float acc_ThreshHold = 2.6;
-
+bool noissue = true;
 bool Security_State = true;  // true : security on
 unsigned char Last_cmd = NULL;
 
 String __ = "=";
 String DeviceCodeName = "HUB0";
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+AWS_IOT HBB_AWS; // AWS_IOT instance
+
+//char WIFI_SSID[] = "AndroidHotspot3642";
+//char WIFI_PASSWORD[] = "88008800";
+
+char WIFI_SSID[] = "KAU-Guest";
+char WIFI_PASSWORD[] = "";
+
+char HOST_ADDRESS[] = "a1ewasgidh0jna-ats.iot.ap-northeast-2.amazonaws.com";
+char CLIENT_ID[] = "HBB_sensor1";
+char TOPIC_NAME_update[] = "myTopic/try";
+
+
+int status = WL_IDLE_STATUS;
+int tick = 0, msgCount = 0, msgReceived = 0;
+char payload[512];
+char rcvdPayload[512];
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Init ESP Now with fallback
@@ -58,6 +88,9 @@ void InitESPNow() {
   }
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Scan for slaves in AP mode
@@ -112,7 +145,6 @@ void ScanForSlave() {
 
 
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // config AP SSID
 void configDeviceAP() {
@@ -128,8 +160,6 @@ void configDeviceAP() {
   }
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 
 
 
@@ -182,6 +212,9 @@ void manageSlave() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 uint8_t data = 100;
 // send data
@@ -216,9 +249,17 @@ void sendData() {
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // callback when data is sent from Master to Slave
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  //  C_W_E_D_C_A = true;
+
+  // INITIALIZING ARRAY
+
+
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
@@ -238,27 +279,31 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.println("");
 
   MoniteringState = *data;
-
-  
+  ESM_Reports.add(*data);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void setup() {
-  Serial.begin(115200);
-  //Set device in STA mode to begin with
-  WiFi.mode(WIFI_AP_STA);
-  // configure device AP mode
-  //  configDeviceAP();
-  Serial.println("HBB_HUB Module Online");
-  // This is the mac address of the Master in Station Mode
-  Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
-  // Init ESPNow with a fallback logic
-  InitESPNow();
-  // Once ESPNow is successfully Init, we will register for Send CB to
-  // get the status of Trasnmitted packet
-  esp_now_register_send_cb(OnDataSent);
 
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void callBackDelta(char *topicName, int payloadLen, char *payLoad) {
+  strncpy(rcvdPayload, payLoad, payloadLen);
+  rcvdPayload[payloadLen] = 0;
+  msgReceived = 1;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+void setup() {
+
+  Serial.begin(115200);
+  WiFi.mode(WIFI_AP_STA);
+  Serial.println("HBB_HUB Module Online");
+  Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
+  InitESPNow();
+  esp_now_register_send_cb(OnDataSent);
   esp_err_t F = esp_now_register_recv_cb(OnDataRecv);
   if (F == ESP_OK) {
     Serial.println("register RECV cb function OK");
@@ -266,27 +311,111 @@ void setup() {
   else {
     Serial.println("FUCK YOU  FUCK YOU  FUCK YOU  FUCK YOU  FUCK YOU");
   }
-}
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void loop() {
-  // In the loop we scan for slave
-  ScanForSlave();
-  // If Slave is found, it would be populate in `slave` variable
-  // We will check if `slave` is defined and then we proceed further
-  if (SlaveCnt > 0) { // check if slave channel is defined
-    // `slave` is defined
-    // Add slave as peer if it has not been added already
-    manageSlave();
-    // pair success or already paired
-    // Send data to device
-    sendData();
-  } else {
-    // No slave found to process
+
+
+
+  while (status != WL_CONNECTED)
+  {
+    Serial.print("Attempting to connect to SSID: ");
+    Serial.println(WIFI_SSID);
+    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+    status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD, NULL);
+
+    // wait 5 seconds for connection:
+    delay(5000);
+  }
+  Serial.println("Connected to wifi");
+
+
+  if (HBB_AWS.connect(HOST_ADDRESS, CLIENT_ID) == 0) { // Connect to AWS
+    Serial.println("Connected to AWS");
+    delay(1000);
+
+  }
+  else {
+    Serial.println("AWS connection failed, Check the HOST Address");
+    while (1);
   }
 
-  // wait for 3seconds to run the logic again
-  delay(3000);
+
+
 }
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void loop() {
+
+
+  ///////////////////////////////////////
+  ScanForSlave();
+  if (SlaveCnt > 0) {
+    manageSlave();
+    sendData();
+    // automaticly recieves data
+  }
+  ///////////////////////////////////////
+
+
+  StaticJsonDocument<200> msg1;
+  StaticJsonDocument<200> msg2;
+
+  String SSJP = msg1["SecurityState"];      // 감시 여부
+  String MSJP = msg2["MoniteringState"];    // 침입 여부
+
+
+  if (SecurityState == 99) {
+    SSJP = "ACTIVATED";
+  } else {
+    SSJP = "DE-active";
+  }
+
+
+  noissue = true;
+  // GET MONITERING STATES
+  int e = ESM_Reports.size();
+  for (int h = 0; h < e; h++) {
+    if (ESM_Reports.get(h) == 44) {
+      MSJP = "S-Alert";
+      noissue = false;
+      break;
+    }
+  }
+  if (noissue) {
+    MSJP = "No-Issue";
+  }
+  ESM_Reports.clear();
+
+
+  char SecurityState_JP[100];
+  char MoniteringState_JP[100];
+
+  serializeJson(msg1, SecurityState_JP);
+  serializeJson(msg2, MoniteringState_JP);
+
+  sprintf(SecurityState_JP, "{\"SecurityState\":\"%s\"}", SSJP);
+  sprintf(MoniteringState_JP, "{\"MoniteringState\":\"%s\"}", MSJP);
+
+
+  // Publish [SSJP]
+  if (HBB_AWS.publish(TOPIC_NAME_update, SecurityState_JP) == 0) {
+    Serial.print("[SSJP]publish Message:");
+    Serial.println(SecurityState_JP);
+  }
+  else {
+    Serial.println("[SSJP]Publish failed: ");
+    Serial.println(SecurityState_JP);
+  }
+
+  // Publish [MSJP]
+  if (HBB_AWS.publish(TOPIC_NAME_update, MoniteringState_JP) == 0) {
+    Serial.print("[MSJP]publish Message:");
+    Serial.println(MoniteringState_JP);
+  }
+  else {
+    Serial.println("[MSJP]Publish failed: ");
+    Serial.println(MoniteringState_JP);
+  }
+
+
+  vTaskDelay(1000 / portTICK_RATE_MS);
+
+}
