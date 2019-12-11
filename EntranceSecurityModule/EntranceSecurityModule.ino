@@ -28,10 +28,15 @@ esp_now_peer_info_t master[2] = {};
 #define ESM_index      10
 
 
-char MASMAC[18] = "3c:71:bf:ff:64:6c";
+int alert_count_x = 0;
+int alert_count_y = 0;
+int alert_count_z = 0;
+
+char MASMAC[18] = "a4:cf:12:6c:3e:dc";
 //char MASMAC[18] = "80:7d:3a:ba:3a:88";
 
 const int sLED = 35;
+const int mLED = 32;
 
 const int xpin = 36; // x-axis of the accelerometer
 const int ypin = 39; // y-axis
@@ -49,7 +54,7 @@ int   _A_   = 0;
 int MoniteringState = ESM_NOISSUE;
 int SecurityState = ESM_ACTIVATE;
 
-float acc_ThreshHold = 8;
+float acc_ThreshHold = 8.4;
 
 bool Security_State = true;  // true : security on
 unsigned char Last_cmd = NULL;
@@ -93,7 +98,7 @@ void RessetESM() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Check Movement Occurrence for 1 Time
-int CheckMovement() {
+int CheckMovement(int what) {
 
   int x = analogRead(xpin); //read from xpin
   delay(1); //
@@ -124,33 +129,46 @@ int CheckMovement() {
   //  Serial.print("\n");
   delay(3);
 
-  if (abs(G_acc_X - acc_X) > acc_ThreshHold) {
-    Serial.print(G_acc_X - acc_X); //print x value on serial monitor
-    Serial.print("\t");
-    Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
-    Serial.print("\t");
-    Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
-    Serial.print("\n");
+  if (abs(G_acc_X - acc_X) > acc_ThreshHold && what == 1) {
+    alert_count_x += 1;
+    if (alert_count_x > 2) {
+      Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+      Serial.print("\t");
+      Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+      Serial.print("\t");
+      Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+      Serial.print("\n");
+    }
     return 1;
   }
-  if (abs(G_acc_Y - acc_Y) > acc_ThreshHold) {
-    Serial.print(G_acc_X - acc_X); //print x value on serial monitor
-    Serial.print("\t");
-    Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
-    Serial.print("\t");
-    Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
-    Serial.print("\n");
+  if (abs(G_acc_Y - acc_Y) > acc_ThreshHold && what == 2) {
+    alert_count_y += 1;
+    if (alert_count_y > 2) {
+      Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+      Serial.print("\t");
+      Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+      Serial.print("\t");
+      Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+      Serial.print("\n");
+    }
     return 2;
   }
-  if (abs(G_acc_Z - acc_Z) > acc_ThreshHold) {
-    Serial.print(G_acc_X - acc_X); //print x value on serial monitor
-    Serial.print("\t");
-    Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
-    Serial.print("\t");
-    Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
-    Serial.print("\n");
+  if (abs(G_acc_Z - acc_Z) > acc_ThreshHold && what == 3) {
+    alert_count_z += 1;
+    if (alert_count_z > 2) {
+      Serial.print(G_acc_X - acc_X); //print x value on serial monitor
+      Serial.print("\t");
+      Serial.print(G_acc_Y - acc_Y); //print y value on serial monitor
+      Serial.print("\t");
+      Serial.print(G_acc_Z - acc_Z); //print z value on serial monitor
+      Serial.print("\n");
+    }
     return 3;
   }
+
+  alert_count_x = 0;
+  alert_count_y = 0;
+  alert_count_z = 0;
 
   return 0;
 }
@@ -158,14 +176,18 @@ int CheckMovement() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void SecurityAlert(int AlertAxis) {
-  Serial.println("Security Alert!  ");
-  MoniteringState = ESM_S_ISSUE;
 
-  //  String State  = "E";
-  //  String S_Code = "0130"; // *** Requires refactoring
-  //  String StateMSG = String(DeviceCodeName + __ + Device_BT_ADDR + __ + State + __ + S_Code);
-  //  Serial.println(StateMSG);
-  //  Serial.println("\n");
+  if (alert_count_x > 2) MoniteringState = ESM_S_ISSUE;
+  if (alert_count_y > 2) MoniteringState = ESM_S_ISSUE;
+  if (alert_count_z > 2) MoniteringState = ESM_S_ISSUE;
+
+  if (MoniteringState == ESM_S_ISSUE) {
+    Serial.println("Security Alert!  ");
+    wasAlert = true;
+    digitalWrite(mLED, HIGH);
+  }
+
+
 }
 
 
@@ -234,14 +256,24 @@ void setup() {
   RessetESM();
   RessetESM();
   RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
+  RessetESM();
 
   Serial.print("\n\nEntrance Security Module [ ");
   Serial.print(DeviceCodeName);
   Serial.println(" ] ACTIVATED");
 
   pinMode(sLED, OUTPUT);
-  digitalWrite(sLED, HIGH);
-
+  pinMode(mLED, OUTPUT); 
+  
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -305,7 +337,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   }
 
 
-  if (wasAlert){
+  if (wasAlert) {
     Sdata = 44;
     wasAlert = false;
   }
@@ -341,7 +373,13 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
 
-  _A_ = CheckMovement();
+  if (SecurityState == ESM_ACTIVATE){
+    digitalWrite(sLED, HIGH);
+  } else {
+    digitalWrite(sLED, LOW);
+  }
+
+  _A_ = CheckMovement(3);
   switch (_A_) {
     case 0:
       MoniteringState = ESM_NOISSUE;
@@ -350,7 +388,6 @@ void loop() {
 
     default:
       SecurityAlert(_A_);
-      wasAlert = true;
       break;
   }
   Sdata = MoniteringState;
