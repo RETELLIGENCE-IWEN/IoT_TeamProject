@@ -66,7 +66,7 @@ char TOPIC_NAME_update[] = "$aws/things/HBB_sensor1/shadow/update";
 char TOPIC_NAME_delta[] = "$aws/things/HBB_sensor1/shadow/update/delta";
 
 
-
+int publishCount = 0;
 int status = WL_IDLE_STATUS;
 int tick = 0, msgCount = 0, msgReceived = 0;
 char payload[512];
@@ -182,9 +182,9 @@ void manageSlave() {
       //      Serial.print("Processing: ");
       for (int ii = 0; ii < 6; ++ii ) {
         //        Serial.print((uint8_t) slaves[i].peer_addr[ii], HEX);
-        if (ii != 5) Serial.print(":");
+        //        if (ii != 5) Serial.print(":");
       }
-      Serial.print(" Status: ");
+      //      Serial.print(" Status: ");
       // check if the peer exists
       bool exists = esp_now_is_peer_exist(slaves[i].peer_addr);
       if (exists) {
@@ -198,15 +198,15 @@ void manageSlave() {
           Serial.println("Pair success");
         } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
           // How did we get so far!!
-          Serial.println("ESPNOW Not Init");
+          //          Serial.println("ESPNOW Not Init");
         } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
-          Serial.println("Add Peer - Invalid Argument");
+          //          Serial.println("Add Peer - Invalid Argument");
         } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
-          Serial.println("Peer list full");
+          //          Serial.println("Peer list full");
         } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-          Serial.println("Out of memory");
+          //          Serial.println("Out of memory");
         } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
-          Serial.println("Peer Exists");
+          //          Serial.println("Peer Exists");
         } else {
           Serial.println("Not sure what happened");
         }
@@ -313,14 +313,7 @@ void setup() {
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
   InitESPNow();
   esp_now_register_send_cb(OnDataSent);
-  esp_err_t F = esp_now_register_recv_cb(OnDataRecv);
-  if (F == ESP_OK) {
-    Serial.println("register RECV cb function OK");
-  }
-  else {
-    Serial.println("FUCK YOU  FUCK YOU  FUCK YOU  FUCK YOU  FUCK YOU");
-  }
-
+  esp_now_register_recv_cb(OnDataRecv);
 
 
 
@@ -339,22 +332,24 @@ void setup() {
 
   if (HBB_AWS.connect(HOST_ADDRESS, CLIENT_ID) == 0) { // Connect to AWS
     Serial.println("Connected to AWS");
+    delay(1000);
     if (0 == HBB_AWS.subscribe(TOPIC_NAME_delta, callBackDelta))
       Serial.println("Subscribe Successfull");
     else {
       Serial.println("Subscribe Failed");
-      //      while (1);
+      ESP.restart();
+      while (1);
     }
 
   }
   else {
     Serial.println("AWS connection failed");
-
+    ESP.restart();
   }
 
-
-
 }
+
+
 
 void loop() {
 
@@ -365,103 +360,150 @@ void loop() {
 
   if (msgReceived == 1) {
     msgReceived = 0;
-    Serial.print("Received Message : ");
+    Serial.print("$$ Received Message : ");
     Serial.println(rcvdPayload);
     // Deserialize the JSON document
     if (deserializeJson(msgRECV, rcvdPayload)) { // if error
       Serial.print(F("deserializeJson() failed.. \n"));
     }
 
-    bool crl_Security_state = msgRECV["security"];
+    JsonObject state = msgRECV["state"];
 
-    bool crl_Camera_state = msgRECV["cameraOn"];
+    String crl_Security_ctrl = state["security"];
+    String crl_Camera_ctrl = state["cameraOn"];
+    String crl_Security_state = state["security"];
+    String crl_Monitering_state = state["cameraOn"];
+
 
     Serial.print("\nSubscribed data security : ");
-    Serial.print(crl_Security_state);
+    Serial.print(crl_Security_ctrl);
     Serial.print("\n");
     Serial.print("\nSubscribed data camera : ");
-    Serial.print(crl_Camera_state);
+    Serial.print(crl_Camera_ctrl);
     Serial.print("\n");
 
-
-
-
-
-
-    ///////////////////////////////////////
-    ScanForSlave();
-    if (SlaveCnt > 0) {
-      manageSlave();
-      sendData();
-      // automaticly recieves data
-    }
-    ///////////////////////////////////////
-
-
-
-
-    StaticJsonDocument<200> msg1;
-    StaticJsonDocument<200> msg2;
-
-    String SSJP = msg1["SecurityState"];      // 감시 여부
-    String MSJP = msg2["MoniteringState"];    // 침입 여부
-
-
-    if (SecurityState == 99) {
-      SSJP = "ACTIVATED";
-    } else {
-      SSJP = "DE-active";
-    }
-
-
-    noissue = true;
-    // GET MONITERING STATES
-    int e = ESM_Reports.size();
-    for (int h = 0; h < e; h++) {
-      if (ESM_Reports.get(h) == 44) {
-        MSJP = "S-Alert";
-        noissue = false;
-        break;
-      }
-    }
-    if (noissue) {
-      MSJP = "No-Issue";
-    }
-    ESM_Reports.clear();
-
-
-    char SecurityState_JP[100];
-    char MoniteringState_JP[100];
-
-    serializeJson(msg1, SecurityState_JP);
-    serializeJson(msg2, MoniteringState_JP);
-
-    sprintf(SecurityState_JP, "{\"SecurityState\":\"%s\"}", SSJP);
-    sprintf(MoniteringState_JP, "{\"MoniteringState\":\"%s\"}", MSJP);
-
-
-    // Publish [SSJP]
-    if (HBB_AWS.publish(TOPIC_NAME_update, SecurityState_JP) == 0) {
-      Serial.print("[SSJP]publish Message:");
-      Serial.println(SecurityState_JP);
-    }
-    else {
-      Serial.println("[SSJP]Publish failed: ");
-      Serial.println(SecurityState_JP);
-    }
-
-    // Publish [MSJP]
-    if (HBB_AWS.publish(TOPIC_NAME_update, MoniteringState_JP) == 0) {
-      Serial.print("[MSJP]publish Message:");
-      Serial.println(MoniteringState_JP);
-    }
-    else {
-      Serial.println("[MSJP]Publish failed: ");
-      Serial.println(MoniteringState_JP);
-    }
-
-
-    vTaskDelay(500 / portTICK_RATE_MS);
-
+    Serial.print("\nSubscribed data Monitering State : ");
+    Serial.print(crl_Monitering_state);
+    Serial.print("\n");
+    Serial.print("\nSubscribed data Security State : ");
+    Serial.print(crl_Security_state);
+    Serial.print("\n");
   }
+
+
+
+
+
+
+  ///////////////////////////////////////
+  ScanForSlave();
+  if (SlaveCnt > 0) {
+    manageSlave();
+    sendData();
+    // automaticly recieves data
+  }
+  ///////////////////////////////////////
+
+
+
+
+  //  StaticJsonDocument<200> msg1;
+  //  StaticJsonDocument<200> msg2;
+  //
+  //  String SSJP = msg1["SecurityState"];      // 감시 여부
+  //  String MSJP = msg2["MoniteringState"];    // 침입 여부
+
+  String SSJP;      // 감시 여부
+  String MSJP;    // 침입 여부
+
+  if (SecurityState == 99) {
+    SSJP = "true";
+  } else {
+    SSJP = "false";
+  }
+
+
+  noissue = true;
+  // GET MONITERING STATES
+  int e = ESM_Reports.size();
+  for (int h = 0; h < e; h++) {
+    if (ESM_Reports.get(h) == 44) {
+      MSJP = "true";
+      noissue = false;
+      break;
+    }
+  }
+  if (noissue) {
+    MSJP = "false";
+  }
+  ESM_Reports.clear();
+
+
+  //  char SecurityState_JP[100];
+  //  char MoniteringState_JP[100];
+  //
+  //  serializeJson(msg1, SecurityState_JP);
+  //  serializeJson(msg2, MoniteringState_JP);
+  //
+  //  sprintf(SecurityState_JP, "{\"SecurityState\":\"%s\"}", SSJP);
+  //  sprintf(MoniteringState_JP, "{\"MoniteringState\":\"%s\"}", MSJP);
+
+
+  //  // Publish [SSJP]
+  //  if (HBB_AWS.publish(TOPIC_NAME_update, SecurityState_JP) == 0) {
+  //    Serial.print("[SSJP]publish Message:");
+  //    Serial.println(SecurityState_JP);
+  //  }
+  //  else {
+  //    Serial.println("[SSJP]Publish failed: ");
+  //    Serial.println(SecurityState_JP);
+  //  }
+  //
+  //  // Publish [MSJP]
+  //  if (HBB_AWS.publish(TOPIC_NAME_update, MoniteringState_JP) == 0) {
+  //    Serial.print("[MSJP]publish Message:");
+  //    Serial.println(MoniteringState_JP);
+  //  }
+  //  else {
+  //    Serial.println("[MSJP]Publish failed: ");
+  //    Serial.println(MoniteringState_JP);
+  //  }
+
+
+
+  sprintf(payload, "{\"state\":{\"reported\":{\"MoniteringState\":\"%s\"}}}", MSJP);
+  if (HBB_AWS.publish(TOPIC_NAME_update, payload) == 0) { // Publish the message
+    Serial.print("Publish Monitering State : ");
+    Serial.println(payload);
+  }
+
+  else {
+    Serial.print("Publish Monitering State failed: ");
+    Serial.println(payload);
+    publishCount += 1;
+  }
+
+
+
+  sprintf(payload, "{\"state\":{\"reported\":{\"SecurityState\":\"%s\"}}}", SSJP);
+  if (HBB_AWS.publish(TOPIC_NAME_update, payload) == 0) { // Publish the message
+    Serial.print("Publish Security State : ");
+    Serial.println(payload);
+  }
+
+  else {
+    Serial.print("Publish Security State failed: ");
+    Serial.println(payload);
+    publishCount += 1;
+  }
+
+
+  if (publishCount > 6) {
+    Serial.print("+-----Publish failed 7 Times = Reboot in 3 sec-----+");
+    delay(3000);
+    ESP.restart();
+  }
+
+  vTaskDelay(500 / portTICK_RATE_MS);
+
 }
