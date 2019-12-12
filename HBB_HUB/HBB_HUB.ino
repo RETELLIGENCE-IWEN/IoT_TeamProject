@@ -70,7 +70,7 @@ char WIFI_PASSWORD[] = "";
 char HOST_ADDRESS[] = "a1ewasgidh0jna-ats.iot.ap-northeast-2.amazonaws.com";
 char CLIENT_ID[] = "HBB_sensor1";
 char TOPIC_NAME_update[] = "$aws/things/HBB_sensor1/shadow/update";
-char TOPIC_NAME_delta[] = "$aws/things/HBB_sensor1/shadow/update/delta";
+char TOPIC_NAME_delta[] = "$aws/things/HBB_APP/shadow/update/delta";
 
 //uint8_t Slave1[6] = {3c, 71, bf, ff, 64, 6c};
 //uint8_t Slave2[6] = {3c, 71, bf, f1, d0, 8c};
