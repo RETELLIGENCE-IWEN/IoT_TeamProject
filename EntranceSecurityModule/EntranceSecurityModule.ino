@@ -35,7 +35,7 @@ int alert_count_z = 0;
 char MASMAC[18] = "a4:cf:12:6c:3e:dc";
 //char MASMAC[18] = "80:7d:3a:ba:3a:88";
 
-const int sLED = 35;
+const int sLED = 33;
 const int mLED = 32;
 
 const int xpin = 36; // x-axis of the accelerometer
@@ -185,6 +185,8 @@ void SecurityAlert(int AlertAxis) {
     Serial.println("Security Alert!  ");
     wasAlert = true;
     digitalWrite(mLED, HIGH);
+  } else {
+    digitalWrite(mLED, LOW);
   }
 
 
@@ -246,6 +248,11 @@ void setup() {
   Serial.print(DeviceCodeName);
   Serial.println(" ] Online");
 
+  digitalWrite(sLED, HIGH);
+  delay(500);
+  digitalWrite(sLED, LOW);
+
+
   RessetESM();
   RessetESM();
   RessetESM();
@@ -272,8 +279,12 @@ void setup() {
   Serial.println(" ] ACTIVATED");
 
   pinMode(sLED, OUTPUT);
-  pinMode(mLED, OUTPUT); 
-  
+  pinMode(mLED, OUTPUT);
+
+  digitalWrite(sLED, HIGH);
+  delay(500);
+  digitalWrite(sLED, LOW);
+
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -297,6 +308,12 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.println("");
   Serial.print("Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
+
+  if (*data == 99) {
+    SecurityState = ESM_ACTIVATE;
+  } else if (*data == 88) {
+    SecurityState = ESM_DEACTIVATE;
+  }
 
 
 
@@ -373,25 +390,30 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
 
-  if (SecurityState == ESM_ACTIVATE){
+  if (SecurityState == ESM_ACTIVATE) {
     digitalWrite(sLED, HIGH);
-  } else {
+
+    _A_ = CheckMovement(3);
+    switch (_A_) {
+      case 0:
+        MoniteringState = ESM_NOISSUE;
+        // No Issue
+        break;
+
+      default:
+        SecurityAlert(_A_);
+        break;
+    }
+    Sdata = MoniteringState;
+    // Chill
+    delay(50);
+  }
+
+
+  
+  else {
     digitalWrite(sLED, LOW);
+    delay(1000);
   }
-
-  _A_ = CheckMovement(3);
-  switch (_A_) {
-    case 0:
-      MoniteringState = ESM_NOISSUE;
-      // No Issue
-      break;
-
-    default:
-      SecurityAlert(_A_);
-      break;
-  }
-  Sdata = MoniteringState;
-  // Chill
-  delay(50);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
