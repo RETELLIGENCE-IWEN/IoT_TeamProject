@@ -32,8 +32,8 @@ int alert_count_x = 0;
 int alert_count_y = 0;
 int alert_count_z = 0;
 
-char MASMAC[18] = "a4:cf:12:6c:3e:dc";
-//char MASMAC[18] = "80:7d:3a:ba:3a:88";
+//char MASMAC[18] = "a4:cf:12:6c:3e:dc";
+char MASMAC[18] = "80:7d:3a:ba:3a:88";
 
 const int sLED = 33;
 const int mLED = 32;
@@ -247,6 +247,8 @@ void setup() {
   Serial.print("\n\nEntrance Security Module [ ");
   Serial.print(DeviceCodeName);
   Serial.println(" ] Online");
+  pinMode(sLED, OUTPUT);
+  pinMode(mLED, OUTPUT);
 
   digitalWrite(sLED, HIGH);
   delay(1000);
@@ -278,8 +280,7 @@ void setup() {
   Serial.print(DeviceCodeName);
   Serial.println(" ] ACTIVATED");
 
-  pinMode(sLED, OUTPUT);
-  pinMode(mLED, OUTPUT);
+
 
   digitalWrite(sLED, HIGH);
   delay(1000);
@@ -294,101 +295,104 @@ uint8_t Sdata = 0;
 
 // callback when data is recv from Master
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
-  Serial.println("Data RECV callack function");
+  Serial.println("Data RECV callback function");
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
 
+  Serial.println("FU");
   if ( strcmp(macStr, MASMAC) != 0) {
     //    Serial.println(macStr);
     //    Serial.println("msg From no master");
     //    Serial.println(MASMAC);
     return;
-  }
-
-  Serial.println("");
-  Serial.print("Last Packet Recv from: "); Serial.println(macStr);
-  Serial.print("Last Packet Recv Data: "); Serial.println(*data);
-
-  if (*data == 99) {
-    SecurityState = ESM_ACTIVATE;
-    Serial.println("------------------------------");
-    Serial.println("-------- S ACTIVATEED --------");
-    Serial.println("------------------------------");
-  } else if (*data == 88) {
-    SecurityState = ESM_DEACTIVATE;
-    Serial.println("------------------------------");
-    Serial.println("------ S DE-ACTIVATEED -------");
-    Serial.println("------------------------------");
-  }
-
-
-
-  uint8_t MasterADDR[18];
-  for (int ii = 0; ii < 6; ++ii ) {
-    MasterADDR[ii] = (uint8_t) macStr[ii];
-    master[0].peer_addr[ii] = (uint8_t) macStr[ii];
-  }
-
-  master[0].channel = 1;
-  master[0].encrypt = 0;
-
-
-  bool exists = esp_now_is_peer_exist(MasterADDR);
-  if (exists) {
-    // Slave already paired.
-    Serial.println("Already Paired");
   } else {
-    // Slave not paired, attempt pair
-    esp_err_t addStatus = esp_now_add_peer(&master[0]);
-    if (addStatus == ESP_OK) {
-      // Pair success
-      Serial.println("Pair success");
-    } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
+
+
+    Serial.println("");
+    Serial.print("Last Packet Recv from: "); Serial.println(macStr);
+    Serial.print("Last Packet Recv Data: "); Serial.println(*data);
+
+    if (*data == 99) {
+      SecurityState = ESM_ACTIVATE;
+      Serial.println("------------------------------");
+      Serial.println("-------- S ACTIVATEED --------");
+      Serial.println("------------------------------");
+    } else if (*data == 88) {
+      SecurityState = ESM_DEACTIVATE;
+      Serial.println("------------------------------");
+      Serial.println("------ S DE-ACTIVATEED -------");
+      Serial.println("------------------------------");
+    }
+
+
+
+    uint8_t MasterADDR[18];
+    for (int ii = 0; ii < 6; ++ii ) {
+      MasterADDR[ii] = (uint8_t) macStr[ii];
+      master[0].peer_addr[ii] = (uint8_t) macStr[ii];
+    }
+
+    master[0].channel = 1;
+    master[0].encrypt = 0;
+
+
+    bool exists = esp_now_is_peer_exist(MasterADDR);
+    if (exists) {
+      // Slave already paired.
+      Serial.println("Already Paired");
+    } else {
+      // Slave not paired, attempt pair
+      esp_err_t addStatus = esp_now_add_peer(&master[0]);
+      if (addStatus == ESP_OK) {
+        // Pair success
+        Serial.println("Pair success");
+      } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
+        // How did we get so far!!
+        Serial.println("ESPNOW Not Init");
+      } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
+        Serial.println("Add Peer - Invalid Argument");
+      } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
+        Serial.println("Peer list full");
+      } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
+        Serial.println("Out of memory");
+      } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
+        Serial.println("Peer Exists");
+      } else {
+        Serial.println("Not sure what happened");
+      }
+    }
+
+
+    if (wasAlert) {
+      Sdata = 44;
+      wasAlert = false;
+    }
+    //  const char Sdata = "ESM Bidirectional Positive";
+    Serial.print("Sending: ");
+    Serial.println(Sdata);
+    esp_err_t result = esp_now_send(MasterADDR, &Sdata, sizeof(Sdata));
+    //  esp_now_send(MasterADDR, &Sdata, sizeof(Sdata));
+    Serial.print("Send Status: ");
+    if (result == ESP_OK) {
+      Serial.println("Success");
+    }
+    else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
       // How did we get so far!!
-      Serial.println("ESPNOW Not Init");
-    } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
-      Serial.println("Add Peer - Invalid Argument");
-    } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
-      Serial.println("Peer list full");
-    } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-      Serial.println("Out of memory");
-    } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
-      Serial.println("Peer Exists");
+      Serial.println("ESPNOW not Init.");
+    } else if (result == ESP_ERR_ESPNOW_ARG) {
+      Serial.println("Invalid Argument");
+    } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
+      Serial.println("Internal Error");
+    } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
+      Serial.println("ESP_ERR_ESPNOW_NO_MEM");
+    } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
+      Serial.println("Peer not found.");
     } else {
       Serial.println("Not sure what happened");
     }
+    delay(100);
   }
-
-
-  if (wasAlert) {
-    Sdata = 44;
-    wasAlert = false;
-  }
-  //  const char Sdata = "ESM Bidirectional Positive";
-  Serial.print("Sending: ");
-  Serial.println(Sdata);
-  esp_err_t result = esp_now_send(MasterADDR, &Sdata, sizeof(Sdata));
-  //  esp_now_send(MasterADDR, &Sdata, sizeof(Sdata));
-  Serial.print("Send Status: ");
-  if (result == ESP_OK) {
-    Serial.println("Success");
-  }
-  else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
-    // How did we get so far!!
-    Serial.println("ESPNOW not Init.");
-  } else if (result == ESP_ERR_ESPNOW_ARG) {
-    Serial.println("Invalid Argument");
-  } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
-    Serial.println("Internal Error");
-  } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
-    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
-  } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
-    Serial.println("Peer not found.");
-  } else {
-    Serial.println("Not sure what happened");
-  }
-  delay(100);
 
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
