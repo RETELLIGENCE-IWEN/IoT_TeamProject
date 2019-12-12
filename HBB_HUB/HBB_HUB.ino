@@ -18,8 +18,11 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 LinkedList<int> ESM_Reports = LinkedList<int>();
 
+bool Initialized = false;
 bool C_W_E_D_C_A = false;
-
+bool firstPubSuc = false;
+bool DoPublishTo = false;
+int ESPNOW_BROADCAST_SLEEP_COUNT = 0;
 // Global copy of slave
 #define NUMSLAVES 20
 esp_now_peer_info_t slaves[NUMSLAVES] = {};
@@ -61,6 +64,9 @@ AWS_IOT HBB_AWS; // AWS_IOT instance
 char WIFI_SSID[] = "KAU-Guest";
 char WIFI_PASSWORD[] = "";
 
+//const char *WIFI_SSID = "AndroidHotspot3642";
+//const char *WIFI_PASSWORD = "88998899";
+
 char HOST_ADDRESS[] = "a1ewasgidh0jna-ats.iot.ap-northeast-2.amazonaws.com";
 char CLIENT_ID[] = "HBB_sensor1";
 char TOPIC_NAME_update[] = "$aws/things/HBB_sensor1/shadow/update";
@@ -77,11 +83,6 @@ char payload[512];
 char rcvdPayload[512];
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -104,7 +105,7 @@ void InitESPNow() {
 
 
 
-
+// SCAN SLAVES
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Scan for slaves in AP mode
 void ScanForSlave() {
@@ -160,6 +161,8 @@ void ScanForSlave() {
 
 
 
+
+// CONFIG AP
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // config AP SSID
 void configDeviceAP() {
@@ -178,7 +181,7 @@ void configDeviceAP() {
 
 
 
-
+// MANAGE DELTA
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Check if the slave is already paired with the master.
 // If not, pair the slave with master
@@ -229,7 +232,7 @@ void manageSlave() {
 
 
 
-
+// SEND DATA
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 uint8_t data = 100;
 // send data
@@ -319,14 +322,19 @@ void setup() {
 
   Serial.begin(115200);
   WiFi.mode(WIFI_AP_STA);
-  Serial.println("HBB_HUB Module Online");
+
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
   InitESPNow();
   esp_now_register_send_cb(OnDataSent);
   esp_now_register_recv_cb(OnDataRecv);
 
+  //  ScanForSlave();
+  //  if (SlaveCnt > 0) {
+  //    manageSlave();
+  //    sendData();
+  //  }
 
-
+  //  /*
   while (status != WL_CONNECTED)
   {
     Serial.print("Attempting to connect to SSID: ");
@@ -338,37 +346,64 @@ void setup() {
     delay(3000);
   }
   Serial.println("Connected to wifi");
-
+  //  */
+  //  /*
 
   if (HBB_AWS.connect(HOST_ADDRESS, CLIENT_ID) == 0) { // Connect to AWS
     Serial.println("Connected to AWS");
+
+    //    /*
     delay(1000);
-    if (0 == HBB_AWS.subscribe(TOPIC_NAME_delta, callBackDelta))
+    if (0 == HBB_AWS.subscribe(TOPIC_NAME_delta, callBackDelta)) {
       Serial.println("Subscribe Successfull");
-    else {
+      DoPublishTo = true;
+    } else {
       Serial.println("Subscribe Failed");
       ESP.restart();
       while (1);
     }
-
+    //    */
   }
   else {
     Serial.println("AWS connection failed");
+    while (1);
     ESP.restart();
   }
+  //  */
 
 
+  Initialized = true;
+  Serial.println("HBB_HUB Module Online");
 }
 
 
 
 void loop() {
 
+  // ESP NOW
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  if (SecurityState == ESM_ACTIVATE || ESPNOW_BROADCAST_SLEEP_COUNT == 0) {
+    if (Initialized) {
+      ///////////////////////////////////////
+      ScanForSlave();
+      if (SlaveCnt > 0) {
+        manageSlave();
+        sendData();
+        ESPNOW_BROADCAST_SLEEP_COUNT = 0;
+        // automaticly recieves data
+      }
+      ///////////////////////////////////////
+    }
+  } else {
+    ESPNOW_BROADCAST_SLEEP_COUNT += 1;
+  }
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  Serial.println(msgReceived);
 
+  //  /*
 
-
+  // Received
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   StaticJsonDocument<200> msgRECV;
 
   if (msgReceived == 1) {
@@ -381,15 +416,11 @@ void loop() {
     }
 
     JsonObject state = msgRECV["state"];
-
     String cmd_Security_ctrl = state["Securitycmd"];
-
     String crl_Security_ctrl = state["security"];
     String crl_Camera_ctrl = state["cameraOn"];
     String crl_Security_state = state["SecurityState"];
     String crl_Monitering_state = state["MoniteringState"];
-
-
 
     Serial.print("\nSubscribed data security DELTA : ");
     Serial.print(cmd_Security_ctrl);
@@ -400,7 +431,6 @@ void loop() {
     Serial.print("\nSubscribed data camera : ");
     Serial.print(crl_Camera_ctrl);
     Serial.print("\n");
-
     Serial.print("\nSubscribed data Monitering State : ");
     Serial.print(crl_Monitering_state);
     Serial.print("\n");
@@ -416,43 +446,24 @@ void loop() {
       Serial.println("------------------------------");
       Serial.println("-------- S ACTIVATEED --------");
       Serial.println("------------------------------");
-
     } else if (cmd_Security_ctrl == "false") {
       SecurityState = ESM_DEACTIVATE;
       Serial.println("------------------------------");
       Serial.println("------ S DE-ACTIVATEED -------");
       Serial.println("------------------------------");
-
     } else {
       Serial.println("---Invalid command from APP---");
     }
-
-
-
   }
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
 
 
-  if (SecurityState == ESM_ACTIVATE) {
-    ///////////////////////////////////////
-    ScanForSlave();
-    if (SlaveCnt > 0) {
-      manageSlave();
-      sendData();
-      // automaticly recieves data
-    }
-    ///////////////////////////////////////
-  }
 
-
-  //  StaticJsonDocument<200> msg1;
-  //  StaticJsonDocument<200> msg2;
-  //
-  //  String SSJP = msg1["SecurityState"];      // 감시 여부
-  //  String MSJP = msg2["MoniteringState"];    // 침입 여부
-
+  // Set payload
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   String SSJP;      // 감시 여부
   String MSJP;    // 침입 여부
   String SCJP;    //
@@ -478,89 +489,65 @@ void loop() {
     MSJP = "false";
   }
   ESM_Reports.clear();
-
-
-  //  char SecurityState_JP[100];
-  //  char MoniteringState_JP[100];
-  //
-  //  serializeJson(msg1, SecurityState_JP);
-  //  serializeJson(msg2, MoniteringState_JP);
-  //
-  //  sprintf(SecurityState_JP, "{\"SecurityState\":\"%s\"}", SSJP);
-  //  sprintf(MoniteringState_JP, "{\"MoniteringState\":\"%s\"}", MSJP);
-
-
-  //  // Publish [SSJP]
-  //  if (HBB_AWS.publish(TOPIC_NAME_update, SecurityState_JP) == 0) {
-  //    Serial.print("[SSJP]publish Message:");
-  //    Serial.println(SecurityState_JP);
-  //  }
-  //  else {
-  //    Serial.println("[SSJP]Publish failed: ");
-  //    Serial.println(SecurityState_JP);
-  //  }
-  //
-  //  // Publish [MSJP]
-  //  if (HBB_AWS.publish(TOPIC_NAME_update, MoniteringState_JP) == 0) {
-  //    Serial.print("[MSJP]publish Message:");
-  //    Serial.println(MoniteringState_JP);
-  //  }
-  //  else {
-  //    Serial.println("[MSJP]Publish failed: ");
-  //    Serial.println(MoniteringState_JP);
-  //  }
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
-  sprintf(payload, "{\"state\":{\"reported\":{\"MoniteringState\":\"%s\"}}}", MSJP);
-  if (HBB_AWS.publish(TOPIC_NAME_update, payload) == 0) { // Publish the message
-    Serial.print("Publish Monitering State : ");
-    Serial.println(payload);
+  // Publish
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  if (DoPublishTo) {
+    sprintf(payload, "{\"state\":{\"reported\":{\"MoniteringState\":\"%s\"}}}", MSJP);
+    if (HBB_AWS.publish(TOPIC_NAME_update, payload) == 0) { // Publish the message
+      Serial.print("Publish Monitering State : ");
+      Serial.println(payload);
+      firstPubSuc = true;
+    }
+    else {
+      Serial.print("! failed Publish Monitering State : ");
+      Serial.println(payload);
+      publishCount += 1;
+      firstPubSuc = false;
+    }
+
+
+    if (firstPubSuc) {
+      sprintf(payload, "{\"state\":{\"reported\":{\"SecurityState\":\"%s\"}}}", SSJP);
+      if (HBB_AWS.publish(TOPIC_NAME_update, payload) == 0) { // Publish the message
+        Serial.print("Publish Security State : ");
+        Serial.println(payload);
+      }
+      else {
+        Serial.print("! failed Publish Security State : ");
+        Serial.println(payload);
+        publishCount += 1;
+      }
+
+
+      sprintf(payload, "{\"state\":{\"reported\":{\"SecurityControll\":\"%s\"}}}", SCJP);
+      if (HBB_AWS.publish(TOPIC_NAME_update, payload) == 0) { // Publish the message
+        Serial.print("Publish Security State : ");
+        Serial.println(payload);
+      }
+      else {
+        Serial.print("! failed Publish Security State : ");
+        Serial.println(payload);
+        publishCount += 1;
+      }
+
+      if (publishCount > 11) {
+        Serial.print("+——Publish failed 12 Times = Reboot in 3 sec——+");
+        //          delay(3000);
+        ESP.restart();
+      }
+    }
   }
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //  */
 
-  else {
-    Serial.print("! failed Publish Monitering State : ");
-    Serial.println(payload);
-    publishCount += 1;
-  }
+  //  vTaskDelay(1000 / portTICK_RATE_MS);
 
 
 
-  sprintf(payload, "{\"state\":{\"reported\":{\"SecurityState\":\"%s\"}}}", SSJP);
-  if (HBB_AWS.publish(TOPIC_NAME_update, payload) == 0) { // Publish the message
-    Serial.print("Publish Security State : ");
-    Serial.println(payload);
-  }
-
-  else {
-    Serial.print("! failed Publish Security State : ");
-    Serial.println(payload);
-    publishCount += 1;
-  }
-
-
-  sprintf(payload, "{\"state\":{\"reported\":{\"SecurityControll\":\"%s\"}}}", SCJP);
-  if (HBB_AWS.publish(TOPIC_NAME_update, payload) == 0) { // Publish the message
-    Serial.print("Publish Security State : ");
-    Serial.println(payload);
-  }
-
-  else {
-    Serial.print("! failed Publish Security State : ");
-    Serial.println(payload);
-    publishCount += 1;
-  }
-
-
-  if (publishCount > 11) {
-    Serial.print("+-----Publish failed 12 Times = Reboot in 3 sec-----+");
-    delay(3000);
-    ESP.restart();
-  }
-
-
-
-
-
-  vTaskDelay(500 / portTICK_RATE_MS);
 }
+
+
