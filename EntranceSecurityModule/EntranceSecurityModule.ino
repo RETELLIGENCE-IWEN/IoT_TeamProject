@@ -52,7 +52,7 @@ float acc_Z = 0;
 int   _A_   = 0;
 
 int MoniteringState = ESM_NOISSUE;
-int SecurityState = ESM_ACTIVATE;
+int SecurityState = ESM_DEACTIVATE;
 
 float acc_ThreshHold = 8.4;
 
@@ -249,7 +249,7 @@ void setup() {
   Serial.println(" ] Online");
 
   digitalWrite(sLED, HIGH);
-  delay(500);
+  delay(1000);
   digitalWrite(sLED, LOW);
 
 
@@ -282,7 +282,7 @@ void setup() {
   pinMode(mLED, OUTPUT);
 
   digitalWrite(sLED, HIGH);
-  delay(500);
+  delay(1000);
   digitalWrite(sLED, LOW);
 
 }
@@ -294,6 +294,7 @@ uint8_t Sdata = 0;
 
 // callback when data is recv from Master
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
+  Serial.println("Data RECV callack function");
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
@@ -311,8 +312,14 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
   if (*data == 99) {
     SecurityState = ESM_ACTIVATE;
+    Serial.println("------------------------------");
+    Serial.println("-------- S ACTIVATEED --------");
+    Serial.println("------------------------------");
   } else if (*data == 88) {
     SecurityState = ESM_DEACTIVATE;
+    Serial.println("------------------------------");
+    Serial.println("------ S DE-ACTIVATEED -------");
+    Serial.println("------------------------------");
   }
 
 
@@ -410,7 +417,7 @@ void loop() {
   }
 
 
-  
+
   else {
     digitalWrite(sLED, LOW);
     delay(1000);
